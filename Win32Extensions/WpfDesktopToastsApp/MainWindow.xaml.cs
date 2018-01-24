@@ -1,4 +1,5 @@
-﻿using Microsoft.Toolkit.Uwp.Notifications;
+﻿using Microsoft.QueryStringDotNET;
+using Microsoft.Toolkit.Uwp.Notifications;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,12 +31,21 @@ namespace WpfDesktopToastsApp
 
         private void ButtonPopToast_Click(object sender, RoutedEventArgs e)
         {
-            // Construct the visuals of the toast
+            string title = "Andrew sent you a picture";
+            string content = "Check this out, Happy Canyon in Utah!";
+            string image = "https://picsum.photos/360/202?image=883";
+            int conversationId = 5;
+
+            // Construct the toast content
             ToastContent toastContent = new ToastContent()
             {
                 // Arguments when the user taps body of toast
-                Launch = "action=viewConversation&conversationId=5",
-                ActivationType = ToastActivationType.Background,
+                Launch = new QueryString()
+                {
+                    { "action", "viewConversation" },
+                    { "conversationId", conversationId.ToString() }
+
+                }.ToString(),
 
                 Visual = new ToastVisual()
                 {
@@ -45,12 +55,60 @@ namespace WpfDesktopToastsApp
                         {
                             new AdaptiveText()
                             {
-                                Text = "Hello world!"
+                                Text = title
+                            },
+
+                            new AdaptiveText()
+                            {
+                                Text = content
                             }
                         }
                     }
+                },
+
+                Actions = new ToastActionsCustom()
+                {
+                    Inputs =
+                    {
+                        new ToastTextBox("tbReply")
+                        {
+                            PlaceholderContent = "Type a response"
+                        }
+                    },
+
+                    Buttons =
+                    {
+                        new ToastButton("Reply", new QueryString()
+                        {
+                            { "action", "reply" },
+                            { "conversationId", conversationId.ToString() }
+
+                        }.ToString())
+                        {
+                            ActivationType = ToastActivationType.Background
+                        },
+
+                        new ToastButton("Like", new QueryString()
+                        {
+                            { "action", "like" },
+                            { "conversationId", conversationId.ToString() }
+
+                        }.ToString())
+                        {
+                            ActivationType = ToastActivationType.Background
+                        },
+
+                        new ToastButton("View", new QueryString()
+                        {
+                            { "action", "viewImage" },
+                            { "imageUrl", image }
+
+                        }.ToString())
+                    }
                 }
             };
+
+            Clipboard.SetText(toastContent.GetContent());
 
             var doc = new XmlDocument();
             doc.LoadXml(toastContent.GetContent());
@@ -61,6 +119,23 @@ namespace WpfDesktopToastsApp
             // And then show it
             // If non-Desktop Bridge app, you must provide your AUMID
             ToastNotificationManager.CreateToastNotifier(App.AUMID).Show(toast);
+        }
+
+        internal void ShowConversation()
+        {
+            ContentBody.Content = new TextBlock()
+            {
+                Text = "You've just opened a conversation!",
+                FontWeight = FontWeights.Bold
+            };
+        }
+
+        internal void ShowImage(string imageUrl)
+        {
+            ContentBody.Content = new Image()
+            {
+                Source = new BitmapImage(new Uri(imageUrl))
+            };
         }
     }
 }

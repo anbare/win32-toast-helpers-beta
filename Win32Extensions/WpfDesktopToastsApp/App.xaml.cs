@@ -18,9 +18,21 @@ namespace WpfDesktopToastsApp
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            DesktopNotificationsHelper.CreateShortcutAndRegister(
+            // Must always register for notifications
+            DesktopNotificationsHelper.CreateShortcutAndRegister<MyNotificationActivator>(
                 appDisplayName: "WPF Desktop Toasts",
                 appUserModelId: AUMID);
+
+            // If launched from a toast
+            if (e.Args.Length > 0 && e.Args[0] == "-Embedding")
+            {
+                // Our NotificationActivator will handle showing windows if necessary
+                base.OnStartup(e);
+                return;
+            }
+
+            // Show the window
+            new MainWindow().Show();
 
             base.OnStartup(e);
         }

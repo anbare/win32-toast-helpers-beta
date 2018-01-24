@@ -7,10 +7,19 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="350" Width="525">
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="80"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <Button
             x:Name="ButtonPopToast"
             Content="Pop toast"
             Click="ButtonPopToast_Click"
-            VerticalAlignment="Center"/>
+            Margin="20"/>
+
+        <ContentControl
+            x:Name="ContentBody"
+            Grid.Row="1"
+            Margin="20"/>
     </Grid>
 </Window>

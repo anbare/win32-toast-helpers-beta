@@ -16,19 +16,30 @@ namespace Win32Extensions
         /// <typeparam name="T">Your notification activator receiver. You must extend this class with your own, and specify your own class here.</typeparam>
         /// <param name="appDisplayName"></param>
         /// <param name="appUserModelId"></param>
-        public static void CreateShortcutAndRegister(string appDisplayName, string appUserModelId)
+        public static void CreateShortcutAndRegister<T>(string appDisplayName, string appUserModelId)
+            where T : NotificationActivator
         {
+            Type activatorType = typeof(T);
+
+            if (activatorType == typeof(NotificationActivator))
+            {
+                throw new ArgumentException("You must provide an implementation of your NotificationActivator.");
+            }
+
+            // TODO: Validate attributes are set
+
             String shortcutPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + $"\\Microsoft\\Windows\\Start Menu\\Programs\\{appDisplayName}.lnk";
 
             // Find the path to the current executable
             String exePath = Process.GetCurrentProcess().MainModule.FileName;
-            InstallShortcut(shortcutPath, exePath, appUserModelId);
-            RegisterComServer(exePath);
+            InstallShortcut<T>(shortcutPath, exePath, appUserModelId);
+            RegisterComServer<T>(exePath);
 
-            NotificationActivator.Initialize();
+            NotificationActivator.Initialize<T>();
         }
 
-        private static void InstallShortcut(String shortcutPath, String exePath, string appUserModelId)
+        private static void InstallShortcut<T>(String shortcutPath, String exePath, string appUserModelId)
+            where T : NotificationActivator
         {
             IShellLinkW newShortcut = (IShellLinkW)new CShellLink();
 
@@ -44,7 +55,7 @@ namespace Win32Extensions
 
             PropVariantHelper varToastId = new PropVariantHelper();
             varToastId.VarType = VarEnum.VT_CLSID;
-            varToastId.SetValue(typeof(NotificationActivator).GUID);
+            varToastId.SetValue(typeof(T).GUID);
 
             newShortcutProperties.SetValue(PROPERTYKEY.AppUserModel_ToastActivatorCLSID, varToastId.Propvariant);
 
@@ -54,12 +65,13 @@ namespace Win32Extensions
             newShortcutSave.Save(shortcutPath, true);
         }
 
-        private static void RegisterComServer(String exePath)
+        private static void RegisterComServer<T>(String exePath)
+            where T : NotificationActivator
         {
             // We register the app process itself to start up when the notification is activated, but
             // other options like launching a background process instead that then decides to launch
             // the UI as needed.
-            string regString = String.Format("SOFTWARE\\Classes\\CLSID\\{{{0}}}\\LocalServer32", typeof(NotificationActivator).GUID);
+            string regString = String.Format("SOFTWARE\\Classes\\CLSID\\{{{0}}}\\LocalServer32", typeof(T).GUID);
             var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(regString);
             key.SetValue(null, exePath);
         }

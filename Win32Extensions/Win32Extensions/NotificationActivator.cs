@@ -9,39 +9,38 @@ using System.Threading.Tasks;
 
 namespace Win32Extensions
 {
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComSourceInterfaces(typeof(INotificationActivationCallback))]
-    [Guid("23A5B06E-20BB-4E7E-A0AC-6982ED6A6041"), ComVisible(true)]
-    public class NotificationActivator : INotificationActivationCallback
+    public abstract class NotificationActivator : INotificationActivationCallback
     {
         private bool _hasLookedForActivator = false;
         private NotificationActivator _customActivator;
 
         public void Activate(string appUserModelId, string invokedArgs, NOTIFICATION_USER_INPUT_DATA[] data, uint dataCount)
         {
-            if (_customActivator == null)
-            {
-                if (!_hasLookedForActivator)
-                {
-                    _hasLookedForActivator = true;
+            OnActivated(invokedArgs, new NotificationUserInput(data), appUserModelId);
 
-                    var allTypes = Assembly.GetEntryAssembly().GetTypes();
-                    var matchingType = allTypes.FirstOrDefault(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(NotificationActivator)));
-                    if (matchingType != null)
-                    {
-                        _customActivator = Activator.CreateInstance(matchingType) as NotificationActivator;
-                    }
-                }
-            }
+            //if (_customActivator == null)
+            //{
+            //    if (!_hasLookedForActivator)
+            //    {
+            //        _hasLookedForActivator = true;
 
-            if (_customActivator != null)
-            {
-                _customActivator.OnActivated(invokedArgs, new NotificationUserInput(data), appUserModelId);
-            }
-            else
-            {
-                throw new InvalidOperationException("You must extend the NotificationActivator class to handle toast activations.");
-            }
+            //        var allTypes = Assembly.GetEntryAssembly().GetTypes();
+            //        var matchingType = allTypes.FirstOrDefault(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(NotificationActivator)));
+            //        if (matchingType != null)
+            //        {
+            //            _customActivator = Activator.CreateInstance(matchingType) as NotificationActivator;
+            //        }
+            //    }
+            //}
+
+            //if (_customActivator != null)
+            //{
+            //    _customActivator.OnActivated(invokedArgs, new NotificationUserInput(data), appUserModelId);
+            //}
+            //else
+            //{
+            //    throw new InvalidOperationException("You must extend the NotificationActivator class to handle toast activations.");
+            //}
         }
 
         public virtual void OnActivated(string invokedArgs, NotificationUserInput userInput, string appUserModelId)
@@ -49,16 +48,17 @@ namespace Win32Extensions
             // Nothing, parent app should override this
         }
 
-        public static void Initialize()
+        internal static void Initialize<T>()
+            where T : NotificationActivator
         {
             regService = new RegistrationServices();
 
             cookie = regService.RegisterTypeForComClients(
-                typeof(NotificationActivator),
+                typeof(T),
                 RegistrationClassContext.LocalServer,
                 RegistrationConnectionType.MultipleUse);
         }
-        public static void Uninitialize()
+        internal static void Uninitialize()
         {
             if (cookie != -1 && regService != null)
             {
