@@ -14,6 +14,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Win32Extensions;
 using Windows.Data.Xml.Dom;
 using Windows.UI.Notifications;
 
@@ -117,8 +118,7 @@ namespace WpfDesktopToastsApp
             var toast = new ToastNotification(doc);
 
             // And then show it
-            // If non-Desktop Bridge app, you must provide your AUMID
-            ToastNotificationManager.CreateToastNotifier(App.AUMID).Show(toast);
+            DesktopNotificationManagerCompat.CreateToastNotifier().Show(toast);
         }
 
         internal void ShowConversation()

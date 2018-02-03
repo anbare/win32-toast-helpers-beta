@@ -16,12 +16,13 @@ namespace WpfDesktopToastsApp
     {
         public const string AUMID = "Microsoft.WpfDesktopToasts";
 
-        protected override void OnStartup(StartupEventArgs e)
+        protected override async void OnStartup(StartupEventArgs e)
         {
             // Must always register for notifications
-            DesktopNotificationsHelper.CreateShortcutAndRegister<MyNotificationActivator>(
+            await DesktopNotificationManagerCompat.RegisterAsync<MyNotificationActivator>(
+                aumid: "Microsoft.WpfDesktopToasts",
                 appDisplayName: "WPF Desktop Toasts",
-                appUserModelId: AUMID);
+                appLogo: "C:\\logo.png");
 
             // If launched from a toast
             if (e.Args.Length > 0 && e.Args[0] == "-Embedding")
