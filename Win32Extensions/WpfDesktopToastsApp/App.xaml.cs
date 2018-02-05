@@ -25,7 +25,7 @@ namespace WpfDesktopToastsApp
                 appLogo: "C:\\logo.png");
 
             // If launched from a toast
-            if (e.Args.Length > 0 && e.Args[0] == "-Embedding")
+            if (e.Args.Contains("-ToastComActivation"))
             {
                 // Our NotificationActivator will handle showing windows if necessary
                 base.OnStartup(e);

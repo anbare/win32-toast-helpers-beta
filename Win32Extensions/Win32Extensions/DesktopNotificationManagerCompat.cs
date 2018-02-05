@@ -199,7 +199,10 @@ namespace Win32Extensions
             // the UI as needed.
             string regString = String.Format("SOFTWARE\\Classes\\CLSID\\{{{0}}}\\LocalServer32", typeof(T).GUID);
             var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(regString);
-            key.SetValue(null, exePath);
+
+            // Include a flag so we know this was a toast launch and should wait for COM to process
+            // We also wrap EXE path in quotes for extra security
+            key.SetValue(null, '"' + exePath + '"' + " -ToastComActivation");
         }
 
         /// <summary>
