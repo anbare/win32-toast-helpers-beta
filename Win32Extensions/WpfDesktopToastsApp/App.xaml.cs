@@ -18,14 +18,17 @@ namespace WpfDesktopToastsApp
 
         protected override async void OnStartup(StartupEventArgs e)
         {
-            // Must always register for notifications
-            await DesktopNotificationManagerCompat.RegisterAsync<MyNotificationActivator>(
+            // Register with notification platform
+            await DesktopNotificationManagerCompat.RegisterWithPlatformAsync<MyNotificationActivator>(
                 aumid: "Microsoft.WpfDesktopToasts",
                 appDisplayName: "WPF Desktop Toasts",
                 appLogo: "C:\\logo.png");
 
+            // And then register COM server and activator type
+            DesktopNotificationManagerCompat.RegisterComServerAndActivator<MyNotificationActivator>();
+
             // If launched from a toast
-            if (e.Args.Contains("-ToastComActivation"))
+            if (e.Args.Contains("-ToastActivation"))
             {
                 // Our NotificationActivator will handle showing windows if necessary
                 base.OnStartup(e);

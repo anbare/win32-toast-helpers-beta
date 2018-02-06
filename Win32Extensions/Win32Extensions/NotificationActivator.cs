@@ -51,12 +51,6 @@ namespace Win32Extensions
         internal static void Initialize<T>()
             where T : NotificationActivator
         {
-            regService = new RegistrationServices();
-
-            cookie = regService.RegisterTypeForComClients(
-                typeof(T),
-                RegistrationClassContext.LocalServer,
-                RegistrationConnectionType.MultipleUse);
         }
         internal static void Uninitialize()
         {
