@@ -5,7 +5,7 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using Win32Extensions;
+using DesktopNotifCompat;
 
 namespace WpfDesktopToastsApp
 {
@@ -21,14 +21,15 @@ namespace WpfDesktopToastsApp
             // Register with notification platform
             await DesktopNotificationManagerCompat.RegisterWithPlatformAsync<MyNotificationActivator>(
                 aumid: "Microsoft.WpfDesktopToasts",
-                appDisplayName: "WPF Desktop Toasts",
-                appLogo: "C:\\logo.png");
+                displayName: "WPF Desktop Toasts",
+                logo: "C:\\logo.png",
+                logoBackgroundColor: "transparent");
 
             // And then register COM server and activator type
             DesktopNotificationManagerCompat.RegisterComServerAndActivator<MyNotificationActivator>();
 
             // If launched from a toast
-            if (e.Args.Contains("-ToastActivation"))
+            if (e.Args.Contains("-ToastActivated"))
             {
                 // Our NotificationActivator will handle showing windows if necessary
                 base.OnStartup(e);

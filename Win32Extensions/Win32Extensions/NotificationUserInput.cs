@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Win32Extensions
+namespace DesktopNotifCompat
 {
     public class NotificationUserInput : IReadOnlyDictionary<string, string>
     {

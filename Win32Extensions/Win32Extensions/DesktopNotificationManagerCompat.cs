@@ -1,14 +1,25 @@
-﻿using System;
-using System.Collections.Generic;
+﻿// ******************************************************************
+// Copyright (c) Microsoft. All rights reserved.
+// This code is licensed under the MIT License (MIT).
+// THE CODE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+// TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH
+// THE CODE OR THE USE OR OTHER DEALINGS IN THE CODE.
+// ******************************************************************
+
+using Microsoft.Win32;
+using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Foundation.Metadata;
 using Windows.UI.Notifications;
 
-namespace Win32Extensions
+namespace DesktopNotifCompat
 {
     public class DesktopNotificationManagerCompat
     {
@@ -16,20 +27,21 @@ namespace Win32Extensions
         private static string _aumid;
 
         /// <summary>
-        /// If this is true, that means your app is not running under the Desktop Bridge, and you must call <see cref="RegisterWithPlatformAsync{T}(string, string, string)"/>
+        /// If this is true, that means your app is not running under the Desktop Bridge, and you must call <see cref="RegisterWithPlatformAsync{T}(string, string, string)"/>.
         /// </summary>
-        public static bool MustRegister => DesktopBridgeHelpers.IsRunningAsUwp();
+        public static bool MustRegisterWithPlatform => DesktopBridgeHelpers.IsRunningAsUwp();
 
         /// <summary>
         /// If not running under the Desktop Bridge, you must call this method to register your app information with the notification platform.
-        /// Feel free to call this regardless (so you don't need to fork your code), and we will no-op if running under Desktop Bridge.
+        /// Feel free to call this regardless, and we will no-op if running under Desktop Bridge. Call this upon application startup, before sending toasts.
         /// </summary>
         /// <typeparam name="T">Your implementation of the notification activator.</typeparam>
         /// <param name="aumid">The AUMID to use if not running under Desktop Bridge. This should be unique and different from your Desktop Bridge app's AUMID.</param>
-        /// <param name="appDisplayName">The display name to use if not running under Desktop Bridge.</param>
-        /// <param name="appLogo">The app logo to use if not running under Desktop Bridge.</param>
+        /// <param name="displayName">The display name to use if not running under Desktop Bridge.</param>
+        /// <param name="logo">The app logo to use if not running under Desktop Bridge.</param>
+        /// <param name="logoBackgroundColor">The background color to use with your logo if not running under Desktop Bridge. This should be in hex #AARRGGBB format, like "#FF0063B1", or "transparent" if you want the system accent color to be used.</param>
         /// <returns></returns>
-        public static async Task RegisterWithPlatformAsync<T>(string aumid, string appDisplayName, string appLogo)
+        public static Task RegisterWithPlatformAsync<T>(string aumid, string displayName, string logo, string logoBackgroundColor)
             where T : NotificationActivator
         {
             if (typeof(T) == typeof(NotificationActivator))
@@ -42,14 +54,19 @@ namespace Win32Extensions
                 throw new ArgumentException("You must provide an AUMID.", nameof(aumid));
             }
 
-            if (string.IsNullOrWhiteSpace(appDisplayName))
+            if (string.IsNullOrWhiteSpace(displayName))
             {
-                throw new ArgumentException("You must provide a display name.", nameof(appDisplayName));
+                throw new ArgumentException("You must provide a display name.", nameof(displayName));
             }
 
-            if (string.IsNullOrWhiteSpace(appLogo))
+            if (string.IsNullOrWhiteSpace(logo))
             {
-                throw new ArgumentException("You must provide an app logo.", nameof(appLogo));
+                throw new ArgumentException("You must provide an app logo.", nameof(logo));
+            }
+
+            if (string.IsNullOrWhiteSpace(logoBackgroundColor))
+            {
+                throw new ArgumentException("You must provide a logo background color.", nameof(logoBackgroundColor));
             }
 
             // If running as Desktop Bridge
@@ -58,35 +75,38 @@ namespace Win32Extensions
                 // Clear the AUMID since Desktop Bridge doesn't use it, and then we're done.
                 // Desktop Bridge apps are registered with platform through their manifest.
                 _aumid = null;
-                return;
+                _registered = true;
+                return Task.CompletedTask;
             }
 
             // Cache their AUMID
             _aumid = aumid;
 
-            // If new API available
-            if (ApiInformation.IsTypePresent("Windows.UI.Notifications.Win32.NewDesktopApiClass"))
-            {
-                // We can call that registration
-                // await NewDesktopApiClass.RegisterAsync(aumid, appDisplayName, appLogo, typeof(T).GUID);
-            }
+            // In the future, there'll be a new platform API that we can call to register, which will likely be async,
+            // which is why this method is flagged async.
 
-            else
-            {
-                // Otherwise we fall back to registering in the registry
-                // TODO: Make this use hidden registry way
-                //CreateHiddenShortcutAndRegister<T>(appDisplayName, aumid);
-                String shortcutPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + $"\\Microsoft\\Windows\\Start Menu\\Programs\\{appDisplayName}.lnk";
+            // Otherwise we fall back to registering in the registry
+            // Register app info in registry
+            var regKeyAppIdentity = Registry.ClassesRoot.CreateSubKey("AppUserModelId\\" + aumid);
+            regKeyAppIdentity.SetValue("DisplayName", displayName, RegistryValueKind.ExpandString);
+            regKeyAppIdentity.SetValue("IconUri", logo, RegistryValueKind.ExpandString);
+            regKeyAppIdentity.SetValue("IconBackgroundColor", logoBackgroundColor, RegistryValueKind.ExpandString);
+            regKeyAppIdentity.SetValue("CustomActivator", typeof(T).GUID, RegistryValueKind.String);
 
-                // Find the path to the current executable
-                String exePath = Process.GetCurrentProcess().MainModule.FileName;
-                InstallShortcut<T>(shortcutPath, exePath, aumid);
-            }
+            // And then register app in notification platform
+            var regKeyPlatIdentity = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\PushNotifications\\Applications\\" + aumid);
+            regKeyPlatIdentity.SetValue("Capabilities", 0x24FF, RegistryValueKind.DWord);
+            regKeyPlatIdentity.SetValue("ApplicationType", 0x40000000, RegistryValueKind.DWord);
+            regKeyPlatIdentity.SetValue("PackageMoniker", "System", RegistryValueKind.String);
+
+            _registered = true;
+            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Registers COM CLSID and EXE in LocalServer32 registry, and registers the activator type as a COM server client.
-        /// When your EXE isn't running and an activation comes in, you will be launched with command line flags of -ToastActivation and -Embedded.
+        /// We recommend calling this upon application startup. You must call this in order to receive notification activations.
+        /// When your EXE isn't running and an activation comes in, you will be launched with command line flags of -ToastActivated and -Embedded.
         /// </summary>
         /// <typeparam name="T">Your implementation of NotificationActivator. Must have GUID and ComVisible attributes on class.</typeparam>
         public static void RegisterComServerAndActivator<T>()
@@ -117,21 +137,25 @@ namespace Win32Extensions
                 RegistrationConnectionType.MultipleUse);
         }
 
-        private static void RegisterAndInitializeComActivatorHelper<T>()
+        private static void RegisterComServer<T>(String exePath)
             where T : NotificationActivator
         {
+            // We register the EXE to start up when the notification is activated
+            string regString = String.Format("SOFTWARE\\Classes\\CLSID\\{{{0}}}\\LocalServer32", typeof(T).GUID);
+            var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(regString);
+
+            // Include a flag so we know this was a toast activation and should wait for COM to process
+            // We also wrap EXE path in quotes for extra security
+            key.SetValue(null, '"' + exePath + '"' + " -ToastActivated");
         }
 
         /// <summary>
-        /// Creates a toast notifier. You must have either called <see cref="RegisterWithPlatformAsync{T}(string, string, string)"/> or <see cref="RegisterAsDesktopBridge{T}"/> first, or this will throw an exception.
+        /// Creates a toast notifier. If you're a classic Win32 app, you must have called <see cref="RegisterWithPlatformAsync{T}(string, string, string)"/> first, or this will throw an exception.
         /// </summary>
         /// <returns></returns>
         public static ToastNotifier CreateToastNotifier()
         {
-            if (!_registered)
-            {
-                throw new Exception("You must call RegisterAsync first.");
-            }
+            EnsureRegistered();
 
             if (_aumid != null)
             {
@@ -145,22 +169,40 @@ namespace Win32Extensions
             }
         }
 
-        private static void RegisterComServer<T>(String exePath)
-            where T : NotificationActivator
+        public static DesktopNotificationHistoryCompat History
         {
-            // We register the EXE to start up when the notification is activated
-            string regString = String.Format("SOFTWARE\\Classes\\CLSID\\{{{0}}}\\LocalServer32", typeof(T).GUID);
-            var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(regString);
+            get
+            {
+                EnsureRegistered();
 
-            // Include a flag so we know this was a toast activation and should wait for COM to process
-            // We also wrap EXE path in quotes for extra security
-            key.SetValue(null, '"' + exePath + '"' + " -ToastActivation");
+                return new DesktopNotificationHistoryCompat(_aumid);
+            }
+        }
+
+        private static void EnsureRegistered()
+        {
+            // If not registered
+            if (!_registered)
+            {
+                // Check if Desktop Bridge
+                if (DesktopBridgeHelpers.IsRunningAsUwp())
+                {
+                    // Implicitly registered, all good!
+                    _registered = true;
+                }
+
+                else
+                {
+                    // Otherwise, incorrect usage
+                    throw new Exception("You must call RegisterWithPlatformAsync first.");
+                }
+            }
         }
 
         /// <summary>
         /// Code from https://github.com/qmatteoq/DesktopBridgeHelpers/edit/master/DesktopBridge.Helpers/Helpers.cs
         /// </summary>
-        public class DesktopBridgeHelpers
+        private class DesktopBridgeHelpers
         {
             const long APPMODEL_ERROR_NO_PACKAGE = 15700L;
 
@@ -203,69 +245,5 @@ namespace Win32Extensions
                 }
             }
         }
-
-
-
-
-
-        #region DEPRECATED
-
-
-        /// <summary>
-        /// Creates a Start shortcut and registers your app for notifications.
-        /// </summary>
-        /// <typeparam name="T">Your notification activator receiver. You must extend this class with your own, and specify your own class here.</typeparam>
-        /// <param name="appDisplayName"></param>
-        /// <param name="appUserModelId"></param>
-        internal static void CreateShortcutAndRegister<T>(string appDisplayName, string appUserModelId)
-            where T : NotificationActivator
-        {
-            Type activatorType = typeof(T);
-
-            if (activatorType == typeof(NotificationActivator))
-            {
-                throw new ArgumentException("You must provide an implementation of your NotificationActivator.");
-            }
-
-            // TODO: Validate attributes are set
-
-            String shortcutPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + $"\\Microsoft\\Windows\\Start Menu\\Programs\\{appDisplayName}.lnk";
-
-            // Find the path to the current executable
-            String exePath = Process.GetCurrentProcess().MainModule.FileName;
-            InstallShortcut<T>(shortcutPath, exePath, appUserModelId);
-            RegisterComServer<T>(exePath);
-
-            NotificationActivator.Initialize<T>();
-        }
-
-        private static void InstallShortcut<T>(String shortcutPath, String exePath, string appUserModelId)
-            where T : NotificationActivator
-        {
-            IShellLinkW newShortcut = (IShellLinkW)new CShellLink();
-
-            // Create a shortcut to the exe
-            newShortcut.SetPath(exePath);
-
-            // Open the shortcut property store, set the AppUserModelId property
-            IPropertyStore newShortcutProperties = (IPropertyStore)newShortcut;
-
-            PropVariantHelper varAppId = new PropVariantHelper();
-            varAppId.SetValue(appUserModelId);
-            newShortcutProperties.SetValue(PROPERTYKEY.AppUserModel_ID, varAppId.Propvariant);
-
-            PropVariantHelper varToastId = new PropVariantHelper();
-            varToastId.VarType = VarEnum.VT_CLSID;
-            varToastId.SetValue(typeof(T).GUID);
-
-            newShortcutProperties.SetValue(PROPERTYKEY.AppUserModel_ToastActivatorCLSID, varToastId.Propvariant);
-
-            // Commit the shortcut to disk
-            IPersistFile newShortcutSave = (IPersistFile)newShortcut;
-
-            newShortcutSave.Save(shortcutPath, true);
-        }
-
-        #endregion
     }
 }

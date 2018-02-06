@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Win32Extensions
+namespace DesktopNotifCompat
 {
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
     internal struct PROPERTYKEY

@@ -7,9 +7,9 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using Win32Extensions;
 using Windows.Data.Xml.Dom;
 using Windows.UI.Notifications;
+using DesktopNotifCompat;
 
 namespace WpfDesktopToastsApp
 {

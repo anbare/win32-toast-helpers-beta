@@ -43,6 +43,7 @@
     <Reference Include="Windows.UI" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DesktopNotificationHistoryCompat.cs" />
     <Compile Include="DesktopNotificationManagerCompat.cs" />
     <Compile Include="NotificationActivator.cs" />
     <Compile Include="NotificationUserInput.cs" />
