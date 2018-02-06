@@ -21,7 +21,7 @@ namespace WpfDesktopToastsApp
             // Register with notification platform
             await DesktopNotificationManagerCompat.RegisterWithPlatformAsync<MyNotificationActivator>(
                 aumid: "Microsoft.WpfDesktopToasts",
-                displayName: "WPF Desktop Toasts",
+                displayName: "WPF Desktop Toasts 4",
                 logo: "C:\\logo.png",
                 logoBackgroundColor: "transparent");
 

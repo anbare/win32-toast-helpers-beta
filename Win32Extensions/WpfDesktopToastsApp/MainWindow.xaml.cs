@@ -1,4 +1,5 @@
-﻿using Microsoft.QueryStringDotNET;
+﻿using DesktopNotifCompat;
+using Microsoft.QueryStringDotNET;
 using Microsoft.Toolkit.Uwp.Notifications;
 using System;
 using System.Collections.Generic;
@@ -14,7 +15,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
-using Win32Extensions;
 using Windows.Data.Xml.Dom;
 using Windows.UI.Notifications;
 

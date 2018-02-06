@@ -16,7 +16,7 @@ namespace WpfDesktopToastsApp
     // The GUID must be unique to your app. Create a new GUID if copying this code.
     [ClassInterface(ClassInterfaceType.None)]
     [ComSourceInterfaces(typeof(INotificationActivationCallback))]
-    [Guid("7956E95C-D42E-413B-9C8E-C173E6ADF0C3"), ComVisible(true)]
+    [Guid("7956E95C-D42E-413B-9C8E-C173E6ADF0C4"), ComVisible(true)]
     public class MyNotificationActivator : NotificationActivator
     {
         public override void OnActivated(string invokedArgs, NotificationUserInput userInput, string appUserModelId)
