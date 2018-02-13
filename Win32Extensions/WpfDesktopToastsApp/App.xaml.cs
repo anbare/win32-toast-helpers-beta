@@ -14,14 +14,12 @@ namespace WpfDesktopToastsApp
     /// </summary>
     public partial class App : Application
     {
-        public const string AUMID = "Microsoft.WpfDesktopToasts";
-
         protected override async void OnStartup(StartupEventArgs e)
         {
             // Register with notification platform
             await DesktopNotificationManagerCompat.RegisterWithPlatformAsync<MyNotificationActivator>(
-                aumid: "Microsoft.WpfDesktopToasts",
-                displayName: "WPF Desktop Toasts 4",
+                aumid: "Microsoft.WpfDesktopToasts7",
+                displayName: "WPF Desktop Toasts 7",
                 logo: "C:\\logo.png",
                 logoBackgroundColor: "transparent");
 

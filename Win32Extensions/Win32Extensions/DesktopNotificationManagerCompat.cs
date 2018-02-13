@@ -84,23 +84,41 @@ namespace DesktopNotifCompat
 
             // In the future, there'll be a new platform API that we can call to register, which will likely be async,
             // which is why this method is flagged async.
+            String shortcutPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + $"\\Microsoft\\Windows\\Start Menu\\Programs\\{displayName}.lnk";
 
-            // Otherwise we fall back to registering in the registry
-            // Register app info in registry
-            var regKeyAppIdentity = Registry.ClassesRoot.CreateSubKey("AppUserModelId\\" + aumid);
-            regKeyAppIdentity.SetValue("DisplayName", displayName, RegistryValueKind.ExpandString);
-            regKeyAppIdentity.SetValue("IconUri", logo, RegistryValueKind.ExpandString);
-            regKeyAppIdentity.SetValue("IconBackgroundColor", logoBackgroundColor, RegistryValueKind.ExpandString);
-            regKeyAppIdentity.SetValue("CustomActivator", typeof(T).GUID, RegistryValueKind.String);
-
-            // And then register app in notification platform
-            var regKeyPlatIdentity = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\PushNotifications\\Applications\\" + aumid);
-            regKeyPlatIdentity.SetValue("Capabilities", 0x24FF, RegistryValueKind.DWord);
-            regKeyPlatIdentity.SetValue("ApplicationType", 0x40000000, RegistryValueKind.DWord);
-            regKeyPlatIdentity.SetValue("PackageMoniker", "System", RegistryValueKind.String);
+            // Find the path to the current executable
+            String exePath = Process.GetCurrentProcess().MainModule.FileName;
+            InstallShortcut<T>(shortcutPath, exePath, aumid);
 
             _registered = true;
             return Task.CompletedTask;
+        }
+
+        private static void InstallShortcut<T>(String shortcutPath, String exePath, string appUserModelId)
+            where T : NotificationActivator
+        {
+            IShellLinkW newShortcut = (IShellLinkW)new CShellLink();
+
+            // Create a shortcut to the exe
+            newShortcut.SetPath(exePath);
+
+            // Open the shortcut property store, set the AppUserModelId property
+            IPropertyStore newShortcutProperties = (IPropertyStore)newShortcut;
+
+            PropVariantHelper varAppId = new PropVariantHelper();
+            varAppId.SetValue(appUserModelId);
+            newShortcutProperties.SetValue(PROPERTYKEY.AppUserModel_ID, varAppId.Propvariant);
+
+            PropVariantHelper varToastId = new PropVariantHelper();
+            varToastId.VarType = VarEnum.VT_CLSID;
+            varToastId.SetValue(typeof(T).GUID);
+
+            newShortcutProperties.SetValue(PROPERTYKEY.AppUserModel_ToastActivatorCLSID, varToastId.Propvariant);
+
+            // Commit the shortcut to disk
+            IPersistFile newShortcutSave = (IPersistFile)newShortcut;
+
+            newShortcutSave.Save(shortcutPath, true);
         }
 
         /// <summary>
